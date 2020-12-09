@@ -1,0 +1,13 @@
+{% extends "stripe_app/base.html" %}
+
+{% block title %}
+  Accounts
+{% endblock title %}
+
+{% block content %}
+
+<p>Something was wrong</p>
+
+<a href="{% url 'stripe_app:invoice' invoice_id %}">назад</a>
+
+{% endblock %}

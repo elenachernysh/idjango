@@ -4,7 +4,6 @@ from django.shortcuts import render
 from django.views import View
 from django.http import JsonResponse, HttpResponse
 from utils.common_functions import reduce_info
-
 from iDjango.settings import PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV, PLAID_VERSION, PLAID_COUNTRY_CODES, \
     PLAID_PRODUCTS, PLAID_REDIRECT_URI
 
@@ -62,52 +61,91 @@ class AccessTokenView(View):
             return HttpResponse(status=400)
 
 
-def get_accounts(
-        access_token: str,
-        acceptable_type: str,
-        acceptable_subtypes: tuple,
-        needed_keys: tuple,
-        account_id: str = None
-) -> list:
-    options = {}
-    if account_id:
-        options = {'account_ids': [account_id]}
-    response = client.Accounts.get(access_token, _options=options)
-    raw_accounts = response['accounts']
-    print(raw_accounts)
-    accounts = reduce_info(
-        needed_keys=needed_keys,
-        data_to_reduce=[account for account in raw_accounts if account.get('type') == acceptable_type and account.get('subtype') in acceptable_subtypes]
-    )
-    print(accounts)
-    return accounts
-
-
-class AccountsView(View):
-    """ Detail view of bank accounts """
+class AccountsMixin:
+    """ Class for handling account's views """
     _acceptable_type = 'depository'
     _acceptable_subtypes = ('checking', 'savings')
     _fields_to_represent = ('account_id', 'name', 'mask')
+    _options = {}
 
-    def get(self, request, *args, **kwargs):
+    def get_accounts(self, access_token: str, account_id: str = None) -> dict:
+        try:
+            if account_id:
+                self._options = {'account_ids': [account_id]}
+            response = client.Accounts.get(access_token, _options=self._options)
+            raw_accounts = response['accounts']
+            accounts = reduce_info(
+                needed_keys=self._fields_to_represent,
+                data_to_reduce=[account for account in raw_accounts
+                                if account.get('type') == self._acceptable_type
+                                and account.get('subtype') in self._acceptable_subtypes]
+            )
+            return {'accounts': accounts}
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {'error': e}
+
+    def create_bank_account_token(self, access_token: str, account_id: str) -> dict:
+        try:
+            stripe_response = client.Processor.stripeBankAccountTokenCreate(access_token, account_id)
+            return stripe_response
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            # TODO beautiful error
+            return {'error': e}
+
+
+class AccountsView(View, AccountsMixin):
+    """ Detail view of bank accounts """
+
+    def get(self, request):
         access_token = request.session['access_token']
         invoice_id = request.session['invoice_id']
-        accounts = get_accounts(
-            access_token=access_token,
-            acceptable_type=self._acceptable_type,
-            acceptable_subtypes=self._acceptable_subtypes,
-            needed_keys=self._fields_to_represent
+        accounts = self.get_accounts(
+            access_token=access_token
         )
+        if 'error' in accounts:
+            # TODO error page
+            return render(request, 'auth_app/error.html', {
+                'accounts': accounts.get('error'),
+                'invoice_id': invoice_id
+            })
         return render(request, 'auth_app/accounts.html', {
-            'accounts': accounts,
+            'accounts': accounts.get('accounts'),
             'invoice_id': invoice_id
         })
 
 
-def create_bank_account_token(access_token: str, account_id: str):
-    stripe_response = client.Processor.stripeBankAccountTokenCreate(access_token, account_id)
-    print(stripe_response)
-    return stripe_response.get('stripe_bank_account_token')
+
+
+
+
+
+
+
+# def get_accounts(
+#         access_token: str,
+#         acceptable_type: str,
+#         acceptable_subtypes: tuple,
+#         needed_keys: tuple,
+#         account_id: str = None
+# ) -> list:
+#     options = {}
+#     if account_id:
+#         options = {'account_ids': [account_id]}
+#     response = client.Accounts.get(access_token, _options=options)
+#     raw_accounts = response['accounts']
+#     accounts = reduce_info(
+#         needed_keys=needed_keys,
+#         data_to_reduce=[account for account in raw_accounts
+#         if account.get('type') == acceptable_type and account.get('subtype') in acceptable_subtypes]
+#     )
+#     return accounts
+
+
+
 
 # 2222
 # 4444

@@ -8,11 +8,10 @@
 
 {% include "stripe_app/invoice_description.html" %}
 
-{% if status == 'open' %}
-  <button id="linkButton">Start payment process</button>
-{% else %}
+{% if paid %}
   {{status}}
-  {{status_transitions}}
+{% else %}
+  <button id="linkButton">Start payment process</button>
 {% endif %}
 
 <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>

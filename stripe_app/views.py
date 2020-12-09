@@ -1,6 +1,7 @@
 import json
 import stripe
 from functools import wraps
+from datetime import datetime
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
@@ -73,7 +74,7 @@ class InsertLinkView(View):
 class InvoiceMixin:
     """  Class for handling invoice's views """
     _fields_to_represent_invoice = (
-        'period_end', 'customer_name', 'status', 'status_transitions', 'number', 'subtotal', 'total', 'invoice_pdf'
+        'period_end', 'customer_name', 'status', 'number', 'subtotal', 'total', 'invoice_pdf', 'created', 'paid'
     )
     _fields_to_represent_line_invoice = (
         'quantity', 'description', 'unit_amount'
@@ -96,7 +97,12 @@ class InvoiceMixin:
     def create_context_from_invoice(self, invoice_id: str) -> dict:
         try:
             invoice_details = self.get_invoice(invoice_id)
-            result = {invoice_key: invoice_details.get(invoice_key) for invoice_key in self._fields_to_represent_invoice}
+            result = {
+                invoice_key: invoice_details.get(invoice_key)
+                for invoice_key in self._fields_to_represent_invoice
+            }
+            if result.get('created') > datetime.timestamp(datetime.now()):
+                return {'error': 'invoice link is expired'}
             # result = dict(filter(lambda elem: elem[0] in self._fields_to_represent_invoice, invoice_details.items()))
             lines = invoice_details.get('lines', {}).get('data', [])
             result.update({'products': [self.search(line=line) for line in lines]})
@@ -117,6 +123,7 @@ class InvoiceView(View, InvoiceMixin):
         context = self.create_context_from_invoice(
             invoice_id=invoice_id
         )
+        print(context)
         if 'error' in context:
             return render(request, 'stripe_app/error.html')
         return render(request, 'stripe_app/invoice_detail.html', context)

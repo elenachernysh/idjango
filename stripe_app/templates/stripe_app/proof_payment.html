@@ -1,0 +1,29 @@
+{% extends "stripe_app/base.html" %}
+
+{% block title %}
+  invoice
+{% endblock title %}
+
+{% block content %}
+{% csrf_token %}
+
+{% include "stripe_app/invoice_description.html" %}
+
+<p>Account for payment</p>
+<a href="{% url 'auth_app:accounts' %}">change</a>
+
+
+{% for account in accounts %}
+<div class="form-check">
+  <label class="form-check-label">
+    {{account.name}}
+    ********{{account.mask}}
+  </label>
+</div>
+{% endfor %}
+
+<a href="{% url 'stripe_app:payment' %}">Authorize payment</a>
+
+<!--<button id="linkButton">Authorize payment</button>-->
+
+{% endblock %}

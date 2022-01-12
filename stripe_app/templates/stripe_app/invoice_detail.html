@@ -1,0 +1,75 @@
+{% extends "stripe_app/base.html" %}
+{% load static %}
+{% block title %}
+  invoice
+{% endblock title %}
+
+{% block content %}
+
+{% include "stripe_app/invoice_description.html" %}
+
+{% if paid %}
+  {{status}}
+{% else %}
+  <button id="linkButton">Start payment process</button>
+{% endif %}
+
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<!--<script src="{% static '/link-initialize.js' %}"></script>-->
+<script type="text/javascript">
+  let linkButton = document.getElementById('linkButton');
+
+  (async function() {
+    const fetchLinkToken = async () => {
+      const response = await fetch("{% url 'auth_app:get_link_token' %}", { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' },});
+      const responseJSON = await response.json();
+      if (response.status === 200) return responseJSON.link_token;
+      if (response.status === 400) {
+          linkButton.disabled = true;
+      }
+    };
+
+    let token = await fetchLinkToken();
+    // let token = '{{ link_token }}';
+
+    const configs = {
+      token: token,
+      receivedRedirectUri: null,
+      onSuccess: async function(public_token, metadata) {
+        const response = await fetch("{% url 'auth_app:get_access_token' %}", {
+          method: 'POST',
+          headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+          body: JSON.stringify({ public_token: public_token }),
+        });
+        const responseJSON = await response.json();
+      },
+      onExit: async function(err, metadata) {
+        if (err != null && err.error_code === 'INVALID_LINK_TOKEN') {
+          linkHandler.destroy();
+          linkHandler = Plaid.create({
+            ...configs,
+            token: await fetchLinkToken(),
+          });
+        }
+        if (err != null) {
+          // Handle any other types of errors.
+        }
+      },
+      onEvent: (eventName, metadata) => {
+        // send event and metadata to self-hosted analytics
+        if (eventName === 'HANDOFF') {
+          window.location = "{% url 'auth_app:accounts' %}"
+        }
+      },
+    };
+
+    var linkHandler = Plaid.create(configs);
+
+    // Trigger the authentication view
+    linkButton.onclick = function() {
+      linkHandler.open();
+    };
+  })();
+</script>
+
+{% endblock %}

@@ -1,0 +1,17 @@
+<p>Invoice from iTechArtGroup</p>
+<p>Invoice {{ number }}</p>
+(<a href="{{ invoice_pdf }}">Download as PDF</a>)
+
+<p>Amount Due {{  total }}</p>
+<p>Date Due {{  period_end }}</p>
+<p>Billed To {{ customer_name }}</p>
+
+<p>Summary</p>
+{% for product in products %}
+  <p>{{product.product_name}} x {{product.quantity}}</p>
+  <p>{{product.unit_amount}}</p>
+{% endfor %}
+
+<p>Subtotal {{  subtotal }}</p>
+<p>Amount Due {{  total }}</p>
+

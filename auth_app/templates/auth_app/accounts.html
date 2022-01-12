@@ -1,0 +1,28 @@
+{% extends "stripe_app/base.html" %}
+
+{% block title %}
+  invoice
+{% endblock title %}
+
+{% block content %}
+<p>Select bank account from the list</p>
+
+<form action="{% url 'stripe_app:proof_payment' %}" method="post">
+  {% csrf_token %}
+  <div class="form-group">
+    {% for account in accounts %}
+    <div class="form-check">
+      <input class="form-check-input" type="radio" name="account" id="exampleRadios1" value="{{account.account_id}}">
+      <label class="form-check-label" for="exampleRadios1">
+        {{account.name}}
+        ********{{account.mask}}
+      </label>
+    </div>
+    {% endfor %}
+  </div>
+  <input type="submit" value="OK">
+<!--  <button id="linkButton">NEXT ></button>-->
+</form>
+<a href="{% url 'stripe_app:invoice' invoice_id %}">назад</a>
+
+{% endblock %}
